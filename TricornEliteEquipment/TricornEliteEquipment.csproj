@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
 	<LangVersion>latest</LangVersion>
-	<Version>1.0.0</Version>
+	<Version>1.0.1</Version>
 	<Authors>GChinchi</Authors>
 	<Description>Allow the Tricorn to target Elite monsters.</Description>
 	<RepositoryUrl>https://github.com/schinchi/TricornEliteEquipment</RepositoryUrl>
@@ -35,6 +35,7 @@
   <Target Name="BuildRelease" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Release'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Copy SourceFiles="$(SolutionDir)README.md" DestinationFolder="$(SolutionDir)Thunderstore" />
+    <Copy SourceFiles="$(SolutionDir)CHANGELOG.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\BuildRelease.ps1' '$(Authors)' '$(AssemblyName)' '$(Version)' '$(RepositoryUrl)' '$(Description)'&quot;" />
   </Target>
 

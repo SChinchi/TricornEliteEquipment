@@ -13,12 +13,13 @@ using UnityEngine;
 namespace TricornEliteEquipment
 {
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
+    [BepInIncompatibility("dolso.ItemBlacklist")]
     public class TricornEliteEquipment : BaseUnityPlugin
     {
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "GChinchi";
         public const string PluginName = "TricornEliteEquipment";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.0.1";
 
         public void Awake()
         {
