@@ -34,7 +34,7 @@
 
   <Target Name="BuildRelease" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Release'">
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(SolutionDir)Thunderstore" />
-    <Copy SourceFiles="$(SolutionDir)README.MD" DestinationFolder="$(SolutionDir)Thunderstore" />
+    <Copy SourceFiles="$(SolutionDir)README.md" DestinationFolder="$(SolutionDir)Thunderstore" />
     <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\BuildRelease.ps1' '$(Authors)' '$(AssemblyName)' '$(Version)' '$(RepositoryUrl)' '$(Description)'&quot;" />
   </Target>
 
