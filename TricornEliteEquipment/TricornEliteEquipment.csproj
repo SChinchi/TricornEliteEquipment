@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
 	<LangVersion>latest</LangVersion>
 	<Version>1.0.1</Version>
-	<Authors>GChinchi</Authors>
+	<Authors>Chinchi</Authors>
 	<Description>Allow the Tricorn to target Elite monsters.</Description>
 	<RepositoryUrl>https://github.com/schinchi/TricornEliteEquipment</RepositoryUrl>
   </PropertyGroup>
