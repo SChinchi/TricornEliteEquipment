@@ -13,13 +13,12 @@ using UnityEngine;
 namespace TricornEliteEquipment
 {
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
-    [BepInIncompatibility("dolso.ItemBlacklist")]
     public class TricornEliteEquipment : BaseUnityPlugin
     {
         public const string PluginGUID = PluginAuthor + "." + PluginName;
         public const string PluginAuthor = "GChinchi";
         public const string PluginName = "TricornEliteEquipment";
-        public const string PluginVersion = "1.0.1";
+        public const string PluginVersion = "1.0.2";
 
         public void Awake()
         {
@@ -31,11 +30,6 @@ namespace TricornEliteEquipment
         {
             var c = new ILCursor(il);
             if (!c.TryGotoNext(
-                x => x.MatchLdloc(1),
-                x => x.MatchLdfld<DeathRewards>("bossDropTable"),
-                x => x.MatchLdarg(0),
-                x => x.MatchLdfld<EquipmentSlot>("rng"),
-                x => x.MatchCallvirt<PickupDropTable>("GenerateDrop"),
                 x => x.MatchLdloc(2),
                 x => x.MatchLdloc(3),
                 x => x.MatchLdcR4(15f),
@@ -43,30 +37,36 @@ namespace TricornEliteEquipment
                 x => x.MatchCall<PickupDropletController>("CreatePickupDroplet")
             ))
             {
-                Logger.LogError("Failed to patch EquipmentSlot.FireBossHunter");
+                Logger.LogError("Failed to patch EquipmentSlot.FireBossHunter #1");
                 return;
             }
-            c.RemoveRange(10);
-            c.Emit(OpCodes.Ldarg_0);
+            // We want to modify `deathRewards.bossDropTable.GenerateDrop()`
+            // but ItemBlacklist is also doing that, so to coexist we add our
+            // new custom behaviour as an else block.
+            c.Emit(OpCodes.Br_S, c.Next);
+            c.Emit(OpCodes.Pop);
+            var elseJump = c.Prev;
             c.Emit(OpCodes.Ldloc_1);
-            c.Emit(OpCodes.Ldloc_2);
-            c.Emit(OpCodes.Ldloc_3);
-            c.EmitDelegate<Action<EquipmentSlot, DeathRewards, Vector3, Vector3>>((equipmentSlot, deathRewards, vector, normalized) =>
+            c.EmitDelegate<Func<DeathRewards, PickupIndex>>(deathRewards =>
             {
-                PickupIndex pickupIndex;
-                if (deathRewards.bossDropTable != null)
-                {
-                    pickupIndex = deathRewards.bossDropTable.GenerateDrop(equipmentSlot.rng);
-                }
-                else
-                {
-                    pickupIndex = PickupCatalog.FindPickupIndex(deathRewards.characterBody.inventory.currentEquipmentIndex);
-                }
-                if (pickupIndex != PickupIndex.none)
-                {
-                    PickupDropletController.CreatePickupDroplet(pickupIndex, vector, normalized * 15f);
-                }
+                return PickupCatalog.FindPickupIndex(deathRewards.characterBody.inventory.currentEquipmentIndex);
             });
+            if (!c.TryGotoPrev(
+                MoveType.Before,
+                x => x.MatchLdloc(1),
+                x => x.MatchLdfld<DeathRewards>("bossDropTable"),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<EquipmentSlot>("rng"),
+                x => x.MatchCallvirt<PickupDropTable>("GenerateDrop")
+            ))
+            {
+                Logger.LogError("Failed to patch EquipmentSlot.FireBossHunter #2");
+                return;
+            }
+            // Turning the original code into an if block
+            c.Index += 2;
+            c.Emit(OpCodes.Dup);
+            c.Emit(OpCodes.Brfalse, elseJump);
         }
 
         private void EquipmentSlot_UpdateTargets(ILContext il)

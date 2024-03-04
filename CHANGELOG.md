@@ -1,3 +1,7 @@
+**1.0.2**
+
+* Worked around the incompatibility with ItemBlacklist. Now both mods can coexist.
+
 **1.0.1**
 
 * [Added incompatibility flag for the ItemBlacklist mod](https://github.com/SChinchi/TricornEliteEquipment/issues/1)
