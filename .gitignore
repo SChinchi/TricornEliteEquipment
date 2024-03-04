@@ -399,4 +399,5 @@ FodyWeavers.xsd
 
 # Project specific
 Thunderstore/*.dll
+Thunderstore/*.md
 Thunderstore/*.zip
