@@ -1,3 +1,7 @@
+**1.0.3**
+
+* Fixed hooks for the Alloyed Collective release.
+
 **1.0.2**
 
 * Worked around the incompatibility with ItemBlacklist. Now both mods can coexist.
