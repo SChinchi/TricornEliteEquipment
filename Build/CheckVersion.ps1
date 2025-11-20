@@ -1,21 +1,22 @@
 param(
 	[Parameter(Mandatory=$true, Position=0)]
 	[string]
-	$assembly,
+	$pluginFile,
 	[Parameter(Mandatory=$true, Position=1)]
 	[string]
-	$projectVersion,
-	[Parameter(ValueFromRemainingArguments=$true)]
-	[string[]]$dependencies
+	$projectVersion
 )
-$dll = [System.Reflection.Assembly]::LoadFrom($assembly)
-foreach ($lib in $dependencies)
+try
 {
-	[System.Reflection.Assembly]::LoadFrom($lib) | Out-Null
+	$pattern = Select-String -Path $pluginFile -Pattern 'PluginVersion = "(.*)"'
+	if ($pattern.matches[0].Groups[1].Value -ne $projectVersion)
+	{
+		Write-Host -ForegroundColor Red "Project and source code versions are in disagreement"
+		Exit 1
+	}
 }
-$plugin = ($dll.GetExportedTypes() | Where-Object {$_.BaseType.Name -eq "BaseUnityPlugin"})[0]
-if ($plugin.GetField("PluginVersion").GetValue($null) -ne $projectVersion)
+catch
 {
-	Write-Host -ForegroundColor Red "Project and source code versions are in disagreement"
+	Write-Host -ForegroundColor Red "Source code file not found"
 	Exit 1
 }

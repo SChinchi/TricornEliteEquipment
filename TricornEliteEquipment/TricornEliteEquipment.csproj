@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <Target Name="ValidateVersion" AfterTargets="PostBuildEvent">
-    <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\CheckVersion.ps1' '$(TargetPath)' '$(Version)' '$(PkgBepInEx_Core)\..\..\bepinex.baselib\5.4.20\lib\netstandard2.0\BepInEx.dll' '$(PkgUnityEngine_Modules)\lib\netstandard2.0\UnityEngine.dll'&quot;" />
+    <Exec Command="pwsh –ExecutionPolicy Bypass -Command &quot;&amp; '$(SolutionDir)Build\CheckVersion.ps1' '$(ProjectDir)$(TargetName).cs' '$(Version)'&quot;" />
   </Target>
 
   <Target Name="CopyToDev" AfterTargets="ValidateVersion" Condition="'$(Configuration)'=='Debug'">
