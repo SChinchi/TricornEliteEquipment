@@ -22,63 +22,91 @@ namespace TricornEliteEquipment
 
         public void Awake()
         {
-            IL.RoR2.EquipmentSlot.UpdateTargets += EquipmentSlot_UpdateTargets;
-            IL.RoR2.EquipmentSlot.FireBossHunter += EquipmentSlot_FireBossHunter;
+            IL.RoR2.EquipmentSlot.UpdateTargets += CheckForBossOrElite;
+            IL.RoR2.EquipmentSlot.FireBossHunter += KillBossOrElite;
         }
 
-        private void EquipmentSlot_FireBossHunter(ILContext il)
+        private void KillBossOrElite(ILContext il)
         {
             var c = new ILCursor(il);
+
+            // The code does `pickup = deathRewards.bossDropTable.GeneratePickup(this.rng)`
+            // and we want to convert it into
+            // `pickup = deathRewards.bossDropTable ? deathRewards.bossDropTable.GeneratePickup() : GenerateOurPickup()`
+            //
+            // We can't just match the original code and put into an if-block, because mods
+            // add their own EmitDelegate after GeneratePickup and we want to capture them too.
+            // Therefore, the range of instructions that will go into the if-block, are
+            // - from when we push deathRewards on the stack (first)
+            // - until we load the next argument for CreatePickupDroplet (last)
+            // Note: in vanilla these two sequences are next to each other
             if (!c.TryGotoNext(
-                x => x.MatchLdloc(2),
-                x => x.MatchLdloc(3),
-                x => x.MatchLdcR4(15f),
-                x => x.MatchCall<Vector3>("op_Multiply"),
-                x => x.MatchCall<PickupDropletController>("CreatePickupDroplet")
+                x => x.MatchLdloc(out _),
+                x => x.MatchLdfld<DeathRewards>(nameof(DeathRewards.bossDropTable)),
+                x => x.MatchLdarg(0),
+                x => x.MatchLdfld<EquipmentSlot>(nameof(EquipmentSlot.rng)),
+                x => x.MatchCallOrCallvirt<PickupDropTable>(nameof(PickupDropTable.GeneratePickup))
             ))
             {
                 Logger.LogError("Failed to patch EquipmentSlot.FireBossHunter #1");
                 return;
             }
-            // We want to modify `deathRewards.bossDropTable.GenerateDrop()`
-            // but ItemBlacklist is also doing that, so to coexist we add our
-            // new custom behaviour as an else block.
-            c.Emit(OpCodes.Br_S, c.Next);
-            c.Emit(OpCodes.Pop);
-            var elseJump = c.Prev;
-            c.Emit(OpCodes.Ldloc_1);
-            c.EmitDelegate<Func<DeathRewards, PickupIndex>>(deathRewards =>
-            {
-                return PickupCatalog.FindPickupIndex(deathRewards.characterBody.inventory.currentEquipmentIndex);
-            });
-            if (!c.TryGotoPrev(
-                MoveType.Before,
-                x => x.MatchLdloc(1),
-                x => x.MatchLdfld<DeathRewards>("bossDropTable"),
-                x => x.MatchLdarg(0),
-                x => x.MatchLdfld<EquipmentSlot>("rng"),
-                x => x.MatchCallvirt<PickupDropTable>("GenerateDrop")
+            var firstInstr = c.Next;
+
+            if (!c.TryGotoNext(
+                x => x.MatchLdloc(out _),
+                x => x.MatchLdloc(out _),
+                x => x.MatchLdcR4(out _),
+                x => x.MatchCallOrCallvirt<Vector3>("op_Multiply"),
+                x => x.MatchCallOrCallvirt<PickupDropletController>(nameof(PickupDropletController.CreatePickupDroplet))
             ))
             {
                 Logger.LogError("Failed to patch EquipmentSlot.FireBossHunter #2");
                 return;
             }
-            // Turning the original code into an if block
+            var lastInstr = c.Next;
+
+            // Inject the code that becomes the else-block
+            c.Emit(OpCodes.Br_S, c.Next);
+            c.Emit(OpCodes.Pop);
+            var elseJump = c.Prev;
+            c.Emit(OpCodes.Ldloc_1);
+            c.EmitDelegate<Func<DeathRewards, UniquePickup>>(deathRewards =>
+            {
+                return new UniquePickup(PickupCatalog.FindPickupIndex(deathRewards.characterBody.inventory.currentEquipmentIndex));
+            });
+
+            // Add the if jump
+            c.Goto(firstInstr);
             c.Index += 2;
             c.Emit(OpCodes.Dup);
             c.Emit(OpCodes.Brfalse, elseJump);
         }
 
-        private void EquipmentSlot_UpdateTargets(ILContext il)
+        private void CheckForBossOrElite(ILContext il)
         {
             var c = new ILCursor(il);
-            if (!c.TryGotoNext(x => x.MatchLdfld<DeathRewards>("bossDropTable")))
+
+            var hurtBoxVarIndex = -1;
+            if (!c.TryGotoNext(
+                x => x.MatchLdloc(out hurtBoxVarIndex),
+                x => x.MatchLdfld<HurtBox>(nameof(HurtBox.healthComponent)),
+                x => x.MatchCallOrCallvirt<UnityEngine.Object>("op_Implicit")))
             {
-                Logger.LogError("Failed to patch EquipmentSlot.UpdateTargets");
+                Logger.LogError("Failed to patch EquipmentSlot.UpdateTargets #1");
                 return;
             }
-            c.Index += 2;
-            c.Emit(OpCodes.Ldloc_S, (byte)8);
+
+            if (!c.TryGotoNext(
+                MoveType.After,
+                x => x.MatchLdfld<DeathRewards>(nameof(DeathRewards.bossDropTable)),
+                x => x.MatchCallOrCallvirt<UnityEngine.Object>("op_Implicit")))
+            {
+                Logger.LogError("Failed to patch EquipmentSlot.UpdateTargets #2");
+                return;
+            }
+
+            c.Emit(OpCodes.Ldloc, hurtBoxVarIndex);
             c.EmitDelegate<Func<bool, HurtBox, bool>>((hasBossDropTable, hurtBox) =>
             {
                 if (hasBossDropTable)
